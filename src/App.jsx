@@ -276,10 +276,51 @@ const rolBadge = {
 	partner: "#00C9A7",
 };
 
-const css = (styles) =>
-	Object.entries(styles)
-		.map(([k, v]) => `${k.replace(/([A-Z])/g, "-$1").toLowerCase()}:${v}`)
-		.join(";");
+const USERS_CACHE_KEY = "techridershub.users.v1";
+
+const loadCachedUsers = () => {
+	try {
+		if (typeof localStorage === "undefined") return [];
+		const raw = localStorage.getItem(USERS_CACHE_KEY);
+		if (!raw) return [];
+		const parsed = JSON.parse(raw);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+};
+
+const saveCachedUsers = (users) => {
+	try {
+		if (typeof localStorage === "undefined") return;
+		localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(users));
+	} catch {
+		// noop
+	}
+};
+
+const mergeUsersByEmail = (base, extra) => {
+	const out = [];
+	const seen = new Set();
+	[...base, ...extra].forEach((u) => {
+		const email = (u?.email || "").trim().toLowerCase();
+		if (!email || seen.has(email)) return;
+		seen.add(email);
+		out.push({ ...u, email });
+	});
+	return out;
+};
+
+const avatarFromName = (name) => {
+	const parts = String(name || "")
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean);
+	if (!parts.length) return "U";
+	const first = parts[0]?.[0] || "";
+	const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || "" : "";
+	return (first + last).toUpperCase();
+};
 
 const LogoMark = ({ size = 60, radius = 20 }) => (
 	<img
@@ -603,7 +644,7 @@ const Toast = ({ msg, type }) => (
 // ─── VISTAS ───────────────────────────────────────────────────────────────────
 
 // LOGIN
-const LoginView = ({ onLogin, onGoRegister }) => {
+const LoginView = ({ users, onLogin, onGoRegister }) => {
 	const [email, setEmail] = useState("");
 	const [pass, setPass] = useState("");
 	const [err, setErr] = useState("");
@@ -613,8 +654,11 @@ const LoginView = ({ onLogin, onGoRegister }) => {
 		setErr("");
 		setLoading(true);
 		setTimeout(() => {
-			const user = MOCK_USERS.find(
-				(u) => u.email === email && u.password === pass,
+			const normalizedEmail = String(email || "")
+				.trim()
+				.toLowerCase();
+			const user = (users || []).find(
+				(u) => u.email === normalizedEmail && u.password === pass,
 			);
 			if (user) onLogin(user);
 			else {
@@ -796,7 +840,7 @@ const LoginView = ({ onLogin, onGoRegister }) => {
 };
 
 // REGISTRO
-const RegisterView = ({ onGoLogin, onRegistered }) => {
+const RegisterView = ({ onGoLogin, onRegistered, existingUsers }) => {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [pass, setPass] = useState("");
@@ -807,8 +851,24 @@ const RegisterView = ({ onGoLogin, onRegistered }) => {
 	const [err, setErr] = useState("");
 
 	const handleReg = () => {
-		if (!name || !email || !pass) {
+		setErr("");
+		const normalizedName = String(name || "").trim();
+		const normalizedEmail = String(email || "")
+			.trim()
+			.toLowerCase();
+		if (!normalizedName || !normalizedEmail || !pass) {
 			setErr("Rellena todos los campos obligatorios.");
+			return;
+		}
+		if (pass.length < 8) {
+			setErr("La contraseña debe tener al menos 8 caracteres.");
+			return;
+		}
+		const emailDup = (existingUsers || []).some(
+			(u) => (u?.email || "").trim().toLowerCase() === normalizedEmail,
+		);
+		if (emailDup) {
+			setErr("Ese email ya está registrado. Inicia sesión o usa otro email.");
 			return;
 		}
 		if (role === "partner" && !cif) {
@@ -824,7 +884,14 @@ const RegisterView = ({ onGoLogin, onRegistered }) => {
 		}
 		setLoading(true);
 		setTimeout(() => {
-			onRegistered(name, email, role);
+			onRegistered({
+				name: normalizedName,
+				email: normalizedEmail,
+				password: pass,
+				role,
+				company: String(company || "").trim(),
+				cif: String(cif || "").trim(),
+			});
 		}, 900);
 	};
 
@@ -1096,13 +1163,7 @@ const Navbar = ({ user, onLogout, onNav, activeView }) => (
 );
 
 // LISTA DE PARTNERS
-const PartnerList = ({
-	user,
-	partners,
-	onViewPartner,
-	onNewPartner,
-	toast,
-}) => {
+const PartnerList = ({ user, partners, onViewPartner, onNewPartner }) => {
 	const [search, setSearch] = useState("");
 	const [filter, setFilter] = useState("todos");
 	const filtered = partners.filter((p) => {
@@ -2345,6 +2406,9 @@ const AdminPanel = ({ partners, user }) => {
 export default function App() {
 	const [screen, setScreen] = useState("login"); // login | register | app
 	const [user, setUser] = useState(null);
+	const [users, setUsers] = useState(() =>
+		mergeUsersByEmail(MOCK_USERS, loadCachedUsers()),
+	);
 	const [partners, setPartners] = useState(MOCK_PARTNERS);
 	const [view, setView] = useState("partners");
 	const [selectedPartner, setSelectedPartner] = useState(null);
@@ -2352,6 +2416,16 @@ export default function App() {
 	const [showNewInteraction, setShowNewInteraction] = useState(false);
 	const [interactionTarget, setInteractionTarget] = useState(null);
 	const [toast, setToast] = useState(null);
+
+	useEffect(() => {
+		const demoEmails = new Set(
+			MOCK_USERS.map((u) => (u.email || "").trim().toLowerCase()),
+		);
+		const onlyCustom = (users || []).filter(
+			(u) => !demoEmails.has((u?.email || "").trim().toLowerCase()),
+		);
+		saveCachedUsers(onlyCustom);
+	}, [users]);
 
 	const showToast = (msg, type = "success") => {
 		setToast({ msg, type });
@@ -2368,7 +2442,16 @@ export default function App() {
 		setScreen("login");
 		setSelectedPartner(null);
 	};
-	const handleRegistered = (name, email, role) => {
+	const handleRegistered = ({ name, email, password, role }) => {
+		const newUser = {
+			id: Date.now(),
+			email,
+			password,
+			role,
+			name,
+			avatar: avatarFromName(name),
+		};
+		setUsers((prev) => mergeUsersByEmail(prev || [], [newUser]));
 		showToast(`Cuenta creada para ${name}. Accediendo...`);
 		setTimeout(() => setScreen("login"), 1500);
 	};
@@ -2428,6 +2511,7 @@ export default function App() {
 			<>
 				<style>{`* { margin:0; padding:0; box-sizing:border-box; } @keyframes fadeInUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform:translateY(0); } }`}</style>
 				<LoginView
+					users={users}
 					onLogin={handleLogin}
 					onGoRegister={() => setScreen("register")}
 				/>
@@ -2441,6 +2525,7 @@ export default function App() {
 				<RegisterView
 					onGoLogin={() => setScreen("login")}
 					onRegistered={handleRegistered}
+					existingUsers={users}
 				/>
 				{toast && <Toast msg={toast.msg} type={toast.type} />}
 			</>
@@ -2476,7 +2561,6 @@ export default function App() {
 						partners={partners}
 						onViewPartner={(p) => setSelectedPartner(p)}
 						onNewPartner={() => setShowNewPartner(true)}
-						toast={showToast}
 					/>
 				)}
 				{view === "partners" && selectedPartner && (
