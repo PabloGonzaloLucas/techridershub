@@ -255,7 +255,8 @@ const T = {
 	grad: "linear-gradient(135deg, #00C9A7 0%, #0099FF 100%)",
 };
 
-const LOGO_URL = "/src/assets/techriders_es_logo.jpeg";
+const LOGO_URL =
+	"https://storagetajamarpgl.blob.core.windows.net/prueba2/techriders_es_logo.jpeg";
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const scoreColor = (s) =>
