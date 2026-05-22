@@ -840,7 +840,7 @@ const LoginView = ({ users, onLogin, onGoRegister }) => {
 };
 
 // REGISTRO
-const RegisterView = ({ onGoLogin, onRegistered, existingUsers }) => {
+const RegisterView = ({ onGoLogin, onRegistered, existingUsers, existingCIFs = [] }) => {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [pass, setPass] = useState("");
@@ -875,10 +875,15 @@ const RegisterView = ({ onGoLogin, onRegistered, existingUsers }) => {
 			setErr("El CIF es obligatorio para registrarse como partner.");
 			return;
 		}
-		const dup = MOCK_PARTNERS.find((p) => p.cif === cif);
-		if (dup) {
+		const normalizedCif = String(cif || "").trim().toUpperCase();
+		const knownCifs = new Set(
+			MOCK_PARTNERS.map((p) => String(p.cif || "").trim().toUpperCase()).concat(
+				(existingCIFs || []).map((c) => String(c || "").trim().toUpperCase()),
+			),
+		);
+		if (knownCifs.has(normalizedCif)) {
 			setErr(
-				`⚠️ El CIF ${cif} ya existe como partner: "${dup.nombre}". Contacta con Partnerships.`,
+				`⚠️ El CIF ${cif} ya existe en la base de datos. Contacta con Partnerships.`,
 			);
 			return;
 		}
@@ -2526,6 +2531,7 @@ export default function App() {
 					onGoLogin={() => setScreen("login")}
 					onRegistered={handleRegistered}
 					existingUsers={users}
+					existingCIFs={partners.map((p) => p.cif)}
 				/>
 				{toast && <Toast msg={toast.msg} type={toast.type} />}
 			</>
