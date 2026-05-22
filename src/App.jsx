@@ -38,9 +38,9 @@ const MOCK_USERS = [
 		id: 5,
 		email: "partner@acmecorp.es",
 		password: "demo123",
-		role: "partner",
+		role: "partnerships",
 		name: "Diego Perez",
-		avatar: "DP ",
+		avatar: "DP",
 	},
 ];
 
@@ -266,14 +266,12 @@ const rolLabel = {
 	operaciones: "Operaciones",
 	direccion: "Dirección",
 	legal: "Legal",
-	partner: "Partner",
 };
 const rolBadge = {
 	partnerships: "#0099FF",
 	operaciones: "#9B59B6",
 	direccion: "#FFD166",
 	legal: "#FF6B6B",
-	partner: "#00C9A7",
 };
 
 const USERS_CACHE_KEY = "techridershub.users.v1";
@@ -840,13 +838,11 @@ const LoginView = ({ users, onLogin, onGoRegister }) => {
 };
 
 // REGISTRO
-const RegisterView = ({ onGoLogin, onRegistered, existingUsers, existingCIFs = [] }) => {
+const RegisterView = ({ onGoLogin, onRegistered, existingUsers }) => {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [pass, setPass] = useState("");
-	const [role, setRole] = useState("partner");
-	const [company, setCompany] = useState("");
-	const [cif, setCif] = useState("");
+	const [role, setRole] = useState("partnerships");
 	const [loading, setLoading] = useState(false);
 	const [err, setErr] = useState("");
 
@@ -871,22 +867,6 @@ const RegisterView = ({ onGoLogin, onRegistered, existingUsers, existingCIFs = [
 			setErr("Ese email ya está registrado. Inicia sesión o usa otro email.");
 			return;
 		}
-		if (role === "partner" && !cif) {
-			setErr("El CIF es obligatorio para registrarse como partner.");
-			return;
-		}
-		const normalizedCif = String(cif || "").trim().toUpperCase();
-		const knownCifs = new Set(
-			MOCK_PARTNERS.map((p) => String(p.cif || "").trim().toUpperCase()).concat(
-				(existingCIFs || []).map((c) => String(c || "").trim().toUpperCase()),
-			),
-		);
-		if (knownCifs.has(normalizedCif)) {
-			setErr(
-				`⚠️ El CIF ${cif} ya existe en la base de datos. Contacta con Partnerships.`,
-			);
-			return;
-		}
 		setLoading(true);
 		setTimeout(() => {
 			onRegistered({
@@ -894,8 +874,6 @@ const RegisterView = ({ onGoLogin, onRegistered, existingUsers, existingCIFs = [
 				email: normalizedEmail,
 				password: pass,
 				role,
-				company: String(company || "").trim(),
-				cif: String(cif || "").trim(),
 			});
 		}, 900);
 	};
@@ -998,30 +976,12 @@ const RegisterView = ({ onGoLogin, onRegistered, existingUsers, existingCIFs = [
 						value={role}
 						onChange={setRole}
 						options={[
-							{ value: "partner", label: "Partner / Cliente" },
 							{
 								value: "partnerships",
 								label: "Equipo Partnerships (requiere aprobación)",
 							},
 						]}
 					/>
-					{role === "partner" && (
-						<>
-							<Input
-								label="Empresa"
-								value={company}
-								onChange={setCompany}
-								placeholder="Nombre de tu empresa"
-							/>
-							<Input
-								label="CIF / NIF"
-								value={cif}
-								onChange={setCif}
-								placeholder="B12345678"
-								required
-							/>
-						</>
-					)}
 					{err && (
 						<div
 							style={{
@@ -2531,7 +2491,6 @@ export default function App() {
 					onGoLogin={() => setScreen("login")}
 					onRegistered={handleRegistered}
 					existingUsers={users}
-					existingCIFs={partners.map((p) => p.cif)}
 				/>
 				{toast && <Toast msg={toast.msg} type={toast.type} />}
 			</>
