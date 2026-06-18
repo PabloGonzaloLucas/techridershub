@@ -1,0 +1,42 @@
+export const MOCK_USERS = [
+    {
+        id: 1,
+        email: "partnerships@techriders.com",
+        password: "demo123",
+        role: "partnerships",
+        name: "Borja Piris",
+        avatar: "BP",
+    },
+    {
+        id: 2,
+        email: "ops@techriders.com",
+        password: "demo123",
+        role: "operaciones",
+        name: "Diego Zapico",
+        avatar: "DZ",
+    },
+    {
+        id: 3,
+        email: "dir@techriders.com",
+        password: "demo123",
+        role: "direccion",
+        name: "Sergio Hierro",
+        avatar: "SH",
+    },
+    {
+        id: 4,
+        email: "legal@techriders.com",
+        password: "demo123",
+        role: "legal",
+        name: "Ana María",
+        avatar: "AM",
+    },
+    {
+        id: 5,
+        email: "partner@acmecorp.es",
+        password: "demo123",
+        role: "partner",
+        name: "Diego Perez",
+        avatar: "DP ",
+    },
+];
